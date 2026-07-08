@@ -1,44 +1,44 @@
-# Arquitetura — GPS Tracker
+# Architecture — GPS Tracker
 
-## Módulos
+## Modules
 
 ```
 src/
-├── main.cpp           state machine + orquestração
-├── config.h           pinos e tunáveis
-├── gps/GpsService     UART/NMEA (TinyGPSPlus) + config CASIC (10 Hz, só GGA+RMC)
-├── geo/geo            projeção ENU equiretangular, haversine, interseção de segmentos, epoch UTC
-├── track/LapTimer     linha virtual, voltas, setores, volta ideal
-├── track/TripRecorder distância, duração, vel. máx/média
-├── log/GpxWriter      GPX 1.1 streaming no SD (buffer 4KB)
-├── car/CarRegistry    carros da sessão, persistidos em /cars.txt (MRU)
-├── session/SessionStore  resumo .ses por sessão (histórico), structs de resultado
-└── ui/Ui              telas em M5Canvas (240x135)
+├── main.cpp           state machine + orchestration
+├── config.h           pins and tunables
+├── gps/GpsService     UART/NMEA (TinyGPSPlus) + CASIC config (10 Hz, GGA+RMC only)
+├── geo/geo            equirectangular ENU projection, haversine, segment intersection, UTC epoch
+├── track/LapTimer     virtual line, laps, sectors, ideal lap
+├── track/TripRecorder distance, duration, max/average speed
+├── log/GpxWriter      streaming GPX 1.1 to the SD (4 KB buffer)
+├── car/CarRegistry    session cars, persisted in /cars.txt (MRU)
+├── session/SessionStore  per-session .ses summary (history), result structs
+└── ui/Ui              screens on M5Canvas (240x135)
 ```
 
-## Decisões principais
+## Key decisions
 
-**Cronometragem por linha virtual.** Ao marcar a largada, o curso GPS define uma linha de 30 m perpendicular à direção do carro. Cada par de fixes consecutivos forma um segmento; a interseção segmento×linha (produto vetorial 2D) dá a fração `t` do cruzamento, e o tempo da volta é interpolado nesse ponto — a 10 Hz isso rende precisão de ~10–30 ms, muito melhor que usar o timestamp do fix. Cruzamentos na direção errada (dot product < 0) e com menos de 10 s de volta são descartados.
+**Virtual-line timing.** When you mark the start, the GPS course defines a 30 m line perpendicular to the car's heading. Each pair of consecutive fixes forms a segment; the segment×line intersection (2D cross product) gives the crossing fraction `t`, and the lap time is interpolated at that point — at 10 Hz this yields ~10–30 ms precision, much better than using the fix timestamp. Crossings in the wrong direction (dot product < 0) or shorter than 10 s per lap are discarded.
 
-**Setores e volta ideal.** A distância da volta 1 vira referência e é dividida em 3 setores iguais. Nas voltas seguintes o tempo de cada setor é registrado ao cruzar o limite de distância (com interpolação). Para a própria volta 1, checkpoints (distância, tempo) a cada 20 m permitem calcular os setores retroativamente. Volta ideal = soma dos melhores setores entre todas as voltas.
+**Sectors and ideal lap.** The distance of lap 1 becomes the reference and is split into 3 equal sectors. On subsequent laps, each sector's time is recorded when crossing the distance boundary (with interpolation). For lap 1 itself, checkpoints (distance, time) every 20 m allow the sectors to be computed retroactively. Ideal lap = sum of the best sectors across all laps.
 
-**Velocidade do GPS, não derivada da posição.** `speedKmh` vem do RMC (doppler), que é mais estável que derivar posição. No modo Trajeto, distância só acumula acima de 2 km/h para não integrar jitter parado.
+**GPS speed, not derived from position.** `speedKmh` comes from RMC (Doppler), which is more stable than differentiating position. In Trip mode, distance only accumulates above 2 km/h so that jitter while stationary isn't integrated.
 
-**GPX em streaming.** Nada do trajeto fica em RAM: pontos são formatados e acumulados num buffer de 4 KB, com flush ao encher — protege o cartão e evita travadas no loop. Corrida grava a 10 Hz, Trajeto a 1 Hz. Timestamps ISO-8601 UTC vindos do próprio GPS (algoritmo civil-from-days, sem dependência de RTC/NTP).
+**Streaming GPX.** None of the track stays in RAM: points are formatted and accumulated in a 4 KB buffer, flushed when full — this protects the card and avoids stalls in the loop. Race logs at 10 Hz, Trip at 1 Hz. ISO-8601 UTC timestamps come from the GPS itself (civil-from-days algorithm, no RTC/NTP dependency).
 
-**Memória.** Sem PSRAM no ESP32-S3FN8. Custos fixos: canvas 64 KB, voltas 256×16 B = 4 KB, checkpoints 512×16 B = 8 KB, buffer GPX ~4,3 KB. Folga confortável nos 512 KB de SRAM.
+**Memory.** No PSRAM on the ESP32-S3FN8. Fixed costs: 64 KB canvas, laps 256×16 B = 4 KB, checkpoints 512×16 B = 8 KB, GPX buffer ~4.3 KB. Comfortable headroom within the 512 KB of SRAM.
 
-**SPI compartilhado.** O SX1262 do Cap divide o barramento com o SD; o firmware fixa `NSS (G5)` em HIGH no boot para desselecioná-lo.
+**Shared SPI.** The Cap's SX1262 shares the bus with the SD; the firmware holds `NSS (G5)` HIGH at boot to deselect it.
 
-**Importação retroativa de GPX (GpxImport).** GPX órfãos (gravados antes do `.ses` existir) aparecem no histórico com `*` e são reprocessados ao abrir. Corrida: o 1º ponto do arquivo é a linha de largada (a gravação começa na marcação) e a direção vem do deslocamento inicial (≥ 8 m); os pontos passam pelo mesmo `LapTimer` da sessão ao vivo. Trajeto: estatísticas recalculadas dos pontos (velocidade da tag `<speed>`). O `.ses` gerado torna as próximas aberturas instantâneas. Só suporta GPX do próprio app (parser de linha, não XML genérico).
+**Retroactive GPX import (GpxImport).** Orphan GPX files (recorded before the `.ses` existed) show up in the history with a `*` and are reprocessed when opened. Race: the file's 1st point is the start line (recording begins at the marking) and the heading comes from the initial displacement (≥ 8 m); the points run through the same `LapTimer` as the live session. Trip: statistics recomputed from the points (speed from the `<speed>` tag). The generated `.ses` makes future opens instantaneous. Only supports GPX from this app (line parser, not generic XML).
 
-**Histórico via arquivos .ses.** O GPX não guarda linha de largada nem tempos, então recalcular voltas dele seria frágil. Ao encerrar qualquer sessão, um resumo texto `.ses` (voltas + setores, ou estatísticas do trajeto) é gravado ao lado do GPX. O Histórico lista os `.ses` (mais recentes primeiro, até 24) e reabre a mesma tela de resultados; em corridas, `[V]` navega volta a volta com delta vs. melhor e setores destacados. As telas de resultado leem structs (`RaceResult`/`TripResult`) preenchidos tanto pela sessão ao vivo quanto pelo load do arquivo.
+**History via .ses files.** GPX doesn't store the start line or lap times, so recomputing laps from it would be fragile. When any session ends, a text `.ses` summary (laps + sectors, or trip statistics) is written alongside the GPX. The History lists the `.ses` files (most recent first, up to 24) and reopens the same results screen; in races, `[V]` steps lap by lap with the delta vs. best and highlighted sectors. The results screens read structs (`RaceResult`/`TripResult`) populated both by the live session and by loading the file.
 
-**Carro da sessão.** Fluxo de boot: splash (3 s, cobre o init de SD/GPS) → seleção/digitação do carro → menu. `CarRegistry` guarda até 12 nomes (16 chars) em `/cars.txt`, com o mais recente no topo; o nome sanitizado ([A-Za-z0-9-_]) entra no nome do arquivo GPX e o nome original na tag `<name>` da trilha. Sem SD, o nome vale só para a sessão.
+**Session car.** Boot flow: splash (3 s, covers SD/GPS init) → car selection/entry → menu. `CarRegistry` keeps up to 12 names (16 chars) in `/cars.txt`, most recent on top; the sanitized name ([A-Za-z0-9-_]) goes into the GPX file name and the original name into the track's `<name>` tag. Without an SD, the name is valid for the session only.
 
-## Limitações conhecidas / evolução
+## Known limitations / roadmap
 
-- Curso GPS precisa de movimento: a marcação da linha exige ≥ 5 km/h.
-- Sessões acima de 256 voltas param de registrar voltas novas (GPX continua).
-- Possíveis extensões: exportar resumo `.txt`, telemetria via LoRa, waypoints de setor manuais.
-- **Planejado — resultados no celular via WiFi (decisão de 2026-07-03):** sem dados ao vivo e sem BLE (avaliado e descartado: exigiria app/Web Bluetooth, sem suporte no iOS, e é lento para arquivos). Desenho decidido: hotspot sob demanda (tecla `[W]` no menu, nunca durante a corrida, desliga ao sair) + servidor web em `192.168.4.1` com lista de sessões por carro/data, tabela de voltas e setores (melhor/pior/média/volta ideal) e link de download dos `.gpx`. Etapa 2: desenho do traçado colorido por velocidade renderizado dos pontos, sem mapa de fundo (funciona offline).
+- GPS course needs movement: marking the line requires ≥ 5 km/h.
+- Sessions past 256 laps stop recording new laps (GPX keeps going).
+- Possible extensions: export `.txt` summary, telemetry over LoRa, manual sector waypoints.
+- **Planned — results on the phone over WiFi (decision from 2026-07-03):** no live data and no BLE (evaluated and dropped: it would require an app/Web Bluetooth, no iOS support, and it's slow for files). Chosen design: on-demand hotspot (`[W]` key in the menu, never during a race, turns off on exit) + web server at `192.168.4.1` with a list of sessions by car/date, a table of laps and sectors (best/worst/average/ideal lap), and a download link for the `.gpx` files. Stage 2: speed-colored track drawing rendered from the points, no base map (works offline).
