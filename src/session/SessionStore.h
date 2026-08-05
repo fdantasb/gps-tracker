@@ -5,16 +5,16 @@
 #include "../track/TripRecorder.h"
 #include "../car/CarRegistry.h"
 
-// Persistência dos resultados de cada sessão em um arquivo .ses (texto)
-// ao lado do GPX. O GPX guarda só a trilha; o .ses guarda os tempos —
-// é o que permite reabrir corridas antigas sem recalcular nada.
+// Persists each session's results in a .ses (text) file
+// alongside the GPX. The GPX holds only the track; the .ses holds the times —
+// this is what allows old races to be reopened without recomputing anything.
 //
-// Formato (linhas):
-//   R | T                      tipo
-//   car <nome>
-//   gpx <caminho>
-//   L <ms> <s1> <s2> <s3>      uma por volta (corrida)
-//   S <durMs> <distM> <maxKmh_x10> <avgKmh_x10>   (trajeto)
+// Format (lines):
+//   R | T                      type
+//   car <name>
+//   gpx <path>
+//   L <ms> <s1> <s2> <s3>      one per lap (race)
+//   S <durMs> <distM> <maxKmh_x10> <avgKmh_x10>   (trip)
 
 #define MAX_SESSIONS 24
 
@@ -36,10 +36,10 @@ struct TripResult {
 };
 
 struct SessionEntry {
-    char file[44] = "";        // nome do arquivo (sem diretório)
-    char label[40] = "";       // "03/07 14:32 COR Civic-Type-R"
+    char file[44] = "";        // file name (without directory)
+    char label[40] = "";       // "03/07 14:32 RAC Civic-Type-R"
     bool isRace = false;
-    bool needsImport = false;  // .gpx órfão (sem .ses): reprocessar ao abrir
+    bool needsImport = false;  // orphan .gpx (no .ses): reprocess on open
 };
 
 class SessionStore {
@@ -49,15 +49,15 @@ public:
     static void buildTripResult(const TripRecorder& tr, const char* car,
                                 const char* gpxPath, TripResult& out);
 
-    // Gravam o .ses derivando o caminho do gpxPath (vazio = não grava).
+    // Write the .ses, deriving the path from gpxPath (empty = don't write).
     static void save(const RaceResult& r);
     static void save(const TripResult& t);
 
-    // Lista os .ses do SD, mais recentes primeiro. Retorna a quantidade.
+    // Lists the SD's .ses files, most recent first. Returns the count.
     static uint8_t list(SessionEntry* out, uint8_t maxEntries);
 
-    static bool load(const char* file, RaceResult& out);   // arquivos R
-    static bool load(const char* file, TripResult& out);   // arquivos T
+    static bool load(const char* file, RaceResult& out);   // R files
+    static bool load(const char* file, TripResult& out);   // T files
 
 private:
     static void computeStats(RaceResult& r);

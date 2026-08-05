@@ -32,7 +32,7 @@ bool segmentsIntersect(const Vec2& p1, const Vec2& p2,
     const float rx = p2.x - p1.x, ry = p2.y - p1.y;
     const float sx = q2.x - q1.x, sy = q2.y - q1.y;
     const float denom = rx * sy - ry * sx;
-    if (fabsf(denom) < 1e-9f) return false;  // paralelos
+    if (fabsf(denom) < 1e-9f) return false;  // parallel
 
     const float qpx = q1.x - p1.x, qpy = q1.y - p1.y;
     const float t = (qpx * sy - qpy * sx) / denom;

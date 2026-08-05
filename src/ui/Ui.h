@@ -6,7 +6,7 @@
 #include "../car/CarRegistry.h"
 #include "../session/SessionStore.h"
 
-// Telas do app (display 240x135, desenho em canvas p/ evitar flicker).
+// App screens (240x135 display, drawn to a canvas to avoid flicker).
 
 class Ui {
 public:
@@ -16,11 +16,11 @@ public:
     void drawCarSelect(const CarRegistry& cars, uint8_t sel);
     void drawCarInput(const char* text, bool canCancel);
     void drawMenu(const GpsFix& fix, bool sdOk, const char* car, uint8_t sel);
-    static constexpr uint8_t MENU_ITEMS = 5;  // Corrida/Trajeto/Historico/Carro/Idioma
+    static constexpr uint8_t MENU_ITEMS = 5;  // Race/Trip/History/Car/Language
     void drawWaitFix(uint8_t sats, float hdop);
     void drawRaceArm(const GpsFix& fix);
-    // deltaActive: mostra o delta (volta recém-completada vs. melhor anterior);
-    // deltaMs < 0 = melhorou (verde), > 0 = piorou (vermelho).
+    // deltaActive: shows the delta (just-completed lap vs. previous best);
+    // deltaMs < 0 = improved (green), > 0 = worse (red).
     void drawRaceLive(const GpsFix& fix, const LapTimer& lt,
                       int32_t deltaMs, bool deltaActive);
     void drawRaceResults(const RaceResult& r);
@@ -29,7 +29,7 @@ public:
     void drawTripResults(const TripResult& t);
     void drawHistoryList(const SessionEntry* entries, uint8_t count, uint8_t sel);
     void drawError(const char* msg);
-    void drawBusy(const char* msg);   // ex.: "Importando GPX..."
+    void drawBusy(const char* msg);   // e.g.: "Importing GPX..."
 
     // "M:SS.mmm" / "H:MM:SS"
     static void fmtLap(uint32_t ms, char* out, size_t n);

@@ -149,7 +149,7 @@ static const Lang EN = {
 
 static const Lang* const TABLE[LANG_COUNT] = { &PT, &EN };
 
-static LangId current = LANG_PT;
+static LangId current = LANG_EN;
 
 const Lang& L() { return *TABLE[current]; }
 

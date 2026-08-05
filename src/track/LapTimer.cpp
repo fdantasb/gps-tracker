@@ -5,7 +5,7 @@ static constexpr double kDeg2Rad = M_PI / 180.0;
 void LapTimer::setStartLine(double lat, double lon, float courseDeg, uint64_t epochMs) {
     proj_.setRef(lat, lon);
 
-    // Curso GPS: 0° = Norte, sentido horário. Em ENU: dir = (sin, cos).
+    // GPS course: 0° = North, clockwise. In ENU: dir = (sin, cos).
     const float h = courseDeg * (float)kDeg2Rad;
     lineDir_ = { sinf(h), cosf(h) };
     const Vec2 perp = { -lineDir_.y, lineDir_.x };
@@ -64,7 +64,7 @@ bool LapTimer::onFix(double lat, double lon, uint64_t epochMs) {
 
     if (lapCount_ == 0) recordCheckpoint(lapDist_, epochMs);
 
-    // Limites de setor (disponíveis a partir da volta 2).
+    // Sector boundaries (available from lap 2 onward).
     while (refLapDist_ > 0 && nextSector_ < NUM_SECTORS - 1) {
         const float boundary = refLapDist_ * (float)(nextSector_ + 1) / NUM_SECTORS;
         if (lapDist_ < boundary) break;
@@ -74,7 +74,7 @@ bool LapTimer::onFix(double lat, double lon, uint64_t epochMs) {
         nextSector_++;
     }
 
-    // Cruzamento da linha de largada.
+    // Start line crossing.
     bool completed = false;
     float t;
     if (segmentsIntersect(prevPos_, pos, lineA_, lineB_, t)) {
@@ -82,7 +82,7 @@ bool LapTimer::onFix(double lat, double lon, uint64_t epochMs) {
         const uint64_t crossMs = prevEpochMs_ + (uint64_t)(t * dtMs);
         if (rightWay && crossMs - lapStartMs_ >= MIN_LAP_TIME_MS) {
             finishLap(crossMs);
-            lapDist_ = segLen * (1.0f - t);  // restante do segmento é da volta nova
+            lapDist_ = segLen * (1.0f - t);  // remainder of the segment belongs to the new lap
             completed = true;
         }
     }
@@ -107,7 +107,7 @@ void LapTimer::finishLap(uint64_t crossEpochMs) {
     beginLap(crossEpochMs);
 }
 
-// Interpola o instante em que a volta 1 atingiu cada limite de setor.
+// Interpolates the instant when lap 1 reached each sector boundary.
 void LapTimer::backfillLap1Sectors(uint64_t crossEpochMs) {
     uint64_t tPrev = lapStartMs_;
     for (uint8_t k = 1; k < NUM_SECTORS; ++k) {
@@ -124,7 +124,7 @@ void LapTimer::backfillLap1Sectors(uint64_t crossEpochMs) {
             dLo = ckpts_[i].dist;
             tLo = ckpts_[i].tMs;
         }
-        if (tB == 0) { curLap_.sectorMs[k - 1] = 0; continue; }  // sem dados
+        if (tB == 0) { curLap_.sectorMs[k - 1] = 0; continue; }  // no data
         curLap_.sectorMs[k - 1] = (uint32_t)(tB - tPrev);
         tPrev = tB;
     }
@@ -169,7 +169,7 @@ uint32_t LapTimer::idealLapMs() const {
     uint32_t sum = 0;
     for (uint8_t s = 0; s < NUM_SECTORS; ++s) {
         const uint32_t b = bestSectorMs(s);
-        if (b == 0) return 0;  // dados insuficientes
+        if (b == 0) return 0;  // insufficient data
         sum += b;
     }
     return sum;

@@ -16,7 +16,7 @@ static bool readLine(File& f, char* buf, size_t n) {
     return any;
 }
 
-// Extrai lat/lon/speed/time de uma linha <trkpt .../> gerada pelo GpxWriter.
+// Extracts lat/lon/speed/time from a <trkpt .../> line produced by GpxWriter.
 bool GpxImport::parsePoint(const char* line, double& lat, double& lon,
                            float& speedKmh, uint64_t& epochMs) {
     const char* p = strstr(line, "lat=\"");
@@ -39,7 +39,7 @@ bool GpxImport::parsePoint(const char* line, double& lat, double& lon,
     return true;
 }
 
-// "YYYYMMDD_HHMMSS_<carro>_<modo>.gpx" -> carro (sem des-sanitizar).
+// "YYYYMMDD_HHMMSS_<car>_<mode>.gpx" -> car (without un-sanitizing).
 void GpxImport::carFromFilename(const char* file, char* out, size_t n) {
     out[0] = 0;
     if (strlen(file) <= 20) { snprintf(out, n, "?"); return; }
@@ -62,7 +62,7 @@ bool GpxImport::importRace(const char* file, LapTimer& lt, RaceResult& out) {
     float spd;
     uint64_t t;
 
-    // Passo 1: primeiro ponto (linha de largada) e direção inicial (>= 8 m).
+    // Step 1: first point (start line) and initial direction (>= 8 m).
     double lat0 = 0, lon0 = 0;
     uint64_t t0 = 0;
     bool have0 = false;
@@ -85,7 +85,7 @@ bool GpxImport::importRace(const char* file, LapTimer& lt, RaceResult& out) {
     }
     if (!have0 || course < 0) { f.close(); return false; }
 
-    // Passo 2: reprocessa todos os pontos pelo cronômetro de voltas.
+    // Step 2: reprocess all points through the lap timer.
     lt.setStartLine(lat0, lon0, course, t0);
     f.seek(0);
     while (readLine(f, line, sizeof(line))) {
@@ -98,7 +98,7 @@ bool GpxImport::importRace(const char* file, LapTimer& lt, RaceResult& out) {
     carFromFilename(file, car, sizeof(car));
     SessionStore::buildRaceResult(lt, car, path, out);
     if (out.lapCount == 0) return false;
-    SessionStore::save(out);   // próxima abertura lê o .ses direto
+    SessionStore::save(out);   // next open reads the .ses directly
     return true;
 }
 

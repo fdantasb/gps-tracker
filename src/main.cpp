@@ -1,8 +1,8 @@
 // ============================================================
 // GPS Tracker — M5 Cardputer ADV + Cap LoRa-1262
-// Modos: Corrida (voltas, setores, volta ideal) e Trajeto
-// (distância, tempo, vel. máx/média). Sempre grava GPX no SD,
-// mais um resumo .ses que alimenta o Histórico.
+// Modes: Race (laps, sectors, ideal lap) and Trip
+// (distance, time, max/avg speed). Always logs GPX to the SD,
+// plus a .ses summary that feeds the History.
 // ============================================================
 #include <M5Cardputer.h>
 #include "config.h"
@@ -18,16 +18,16 @@
 
 enum class State {
     SPLASH,
-    CAR_SELECT,     // lista de carros já usados (MRU)
-    CAR_INPUT,      // digitação de carro novo
+    CAR_SELECT,     // list of previously used cars (MRU)
+    CAR_INPUT,      // typing a new car name
     MENU,
-    HISTORY_LIST,   // sessões passadas (.ses no SD)
+    HISTORY_LIST,   // past sessions (.ses on the SD)
     WAIT_FIX_RACE,
     WAIT_FIX_TRIP,
-    RACE_ARM,       // dirigindo até a linha de largada
+    RACE_ARM,       // driving toward the start line
     RACE_RUNNING,
-    RACE_RESULTS,   // resumo (sessão recém-encerrada ou histórico)
-    RACE_LAPS,      // navegação volta a volta
+    RACE_RESULTS,   // summary (session just ended or from history)
+    RACE_LAPS,      // lap-by-lap navigation
     TRIP_RUNNING,
     TRIP_RESULTS,
 };
@@ -47,27 +47,27 @@ static uint32_t lastUiMs = 0;
 static uint32_t lastGpxLogMs = 0;
 static uint32_t splashStartMs = 0;
 
-// Navegação do menu principal (índice do item destacado)
+// Main menu navigation (index of the highlighted item)
 static uint8_t menuSel = 0;
 
-// Seleção/digitação de carro
+// Car selection / typing
 static uint8_t carSel = 0;
 static char    carInput[CAR_NAME_LEN + 1] = "";
 static uint8_t carInputLen = 0;
 
-// Resultados (da sessão ao vivo ou carregados do histórico)
+// Results (from the live session or loaded from history)
 static RaceResult   raceRes;
 static TripResult   tripRes;
 static SessionEntry sessions[MAX_SESSIONS];
 static uint8_t      sessionCount = 0, sessionSel = 0;
 static uint16_t     lapViewIdx = 0;
-static bool         fromHistory = false;   // resultados abertos pelo histórico?
+static bool         fromHistory = false;   // results opened from the history?
 
-// Delta da volta recém-completada vs. melhor anterior (destaque de 7 s).
+// Delta of the just-completed lap vs. the previous best (7 s highlight).
 static int32_t  lapDeltaMs = 0;
 static uint32_t deltaUntilMs = 0;
 
-// Relógio estimado entre fixes (para o cronômetro correr suave na tela).
+// Estimated clock between fixes (so the timer runs smoothly on screen).
 static uint64_t lastFixEpochMs = 0;
 static uint32_t lastFixMillis = 0;
 
@@ -76,7 +76,7 @@ static uint64_t nowEpochMs() {
     return lastFixEpochMs + (millis() - lastFixMillis);
 }
 
-// Abre o GPX da sessão: /gpx/DATA_HORA_<carro>_<modo>.gpx
+// Opens the session GPX: /gpx/DATE_TIME_<car>_<mode>.gpx
 static void openSessionGpx(const GpsFix& fix, const char* mode, const char* modeLabel) {
     lastGpxLogMs = 0;
     if (!sdOk) return;
@@ -91,7 +91,7 @@ static void openSessionGpx(const GpsFix& fix, const char* mode, const char* mode
 
 static void startTrip(const GpsFix& fix) {
     trip.start(fix.epochMs);
-    openSessionGpx(fix, "trip", "Trajeto");
+    openSessionGpx(fix, "trip", "Trip");
     state = State::TRIP_RUNNING;
 }
 
@@ -125,12 +125,12 @@ static void openHistoryEntry() {
 
     bool ok;
     if (e.needsImport) {
-        // GPX órfão (gravado antes do histórico): reprocessa e gera o .ses.
+        // Orphan GPX (recorded before the history existed): reprocess and generate the .ses.
         ui.drawBusy(L().busyImport);
         ok = e.isRace ? GpxImport::importRace(e.file, lapTimer, raceRes)
                       : GpxImport::importTrip(e.file, tripRes);
         if (ok) {
-            // Entrada passa a apontar pro .ses recém-criado.
+            // Entry now points to the just-created .ses.
             strcpy(e.file + strlen(e.file) - 4, ".ses");
             e.needsImport = false;
             const size_t l = strlen(e.label);
@@ -160,14 +160,14 @@ static void confirmCarInput() {
     state = State::MENU;
 }
 
-// Executa o item destacado do menu (por seta+ENTER ou por atalho de letra).
+// Runs the highlighted menu item (via arrow+ENTER or a letter shortcut).
 static void activateMenu(const GpsFix& fix) {
     switch (menuSel) {
         case 0: state = fix.valid ? State::RACE_ARM : State::WAIT_FIX_RACE; break;
         case 1: if (fix.valid) startTrip(fix); else state = State::WAIT_FIX_TRIP; break;
         case 2: openHistory(); break;
         case 3: carSel = 0; state = State::CAR_SELECT; break;
-        case 4: langToggle(); break;   // idioma: alterna e permanece no menu
+        case 4: langToggle(); break;   // language: toggle and stay in the menu
     }
 }
 
@@ -175,20 +175,20 @@ static void handleKey(char raw) {
     const GpsFix& fix = gps.fix();
     char c = (char)tolower((unsigned char)raw);
 
-    // Setas do Cardputer: ; cima  . baixo  , esquerda  / direita.
-    // Esquerda = voltar, direita = selecionar — em toda tela exceto a
-    // digitação de carro (onde ',' e '/' são caracteres do nome).
+    // Cardputer arrows: ; up  . down  , left  / right.
+    // Left = back, right = select — on every screen except car
+    // typing (where ',' and '/' are name characters).
     if (state != State::CAR_INPUT) {
-        if (raw == ',') c = '`';    // voltar (igual a Esc/`)
-        if (raw == '/') c = '\n';   // selecionar (igual a ENTER)
+        if (raw == ',') c = '`';    // back (same as Esc/`)
+        if (raw == '/') c = '\n';   // select (same as ENTER)
     }
 
     switch (state) {
         case State::SPLASH:
-            break;  // ignora teclas
+            break;  // ignore keys
 
         case State::CAR_SELECT: {
-            const uint8_t total = cars.count() + 1;  // + "novo carro"
+            const uint8_t total = cars.count() + 1;  // + "new car"
             if (c == ';' && carSel > 0) carSel--;
             if (c == '.' && carSel < total - 1) carSel++;
             if (c == '\n') {
@@ -211,17 +211,17 @@ static void handleKey(char raw) {
             } else if (c == '`') {
                 if (cars.count() > 0) { carSel = 0; state = State::CAR_SELECT; }
             } else if (isprint((unsigned char)raw) && carInputLen < CAR_NAME_LEN) {
-                carInput[carInputLen++] = raw;   // preserva maiúsculas
+                carInput[carInputLen++] = raw;   // preserve uppercase
                 carInput[carInputLen] = 0;
             }
             break;
 
         case State::MENU:
-            // Navegação por setas + ENTER.
+            // Arrow navigation + ENTER.
             if (c == ';' && menuSel > 0) menuSel--;
             if (c == '.' && menuSel < Ui::MENU_ITEMS - 1) menuSel++;
             if (c == '\n') activateMenu(fix);
-            // Atalhos diretos por letra (aceleradores): posicionam e ativam.
+            // Direct letter shortcuts (accelerators): position and activate.
             if (c == 'r') { menuSel = 0; activateMenu(fix); }
             if (c == 't') { menuSel = 1; activateMenu(fix); }
             if (c == 'h') { menuSel = 2; activateMenu(fix); }
@@ -248,7 +248,7 @@ static void handleKey(char raw) {
             if (c == '\n' && fix.valid && fix.speedKmh >= MIN_COURSE_SPEED_KMH) {
                 lapTimer.setStartLine(fix.lat, fix.lon, fix.courseDeg, fix.epochMs);
                 deltaUntilMs = 0;
-                openSessionGpx(fix, "race", "Corrida");
+                openSessionGpx(fix, "race", "Race");
                 state = State::RACE_RUNNING;
             }
             break;
@@ -263,7 +263,7 @@ static void handleKey(char raw) {
 
         case State::RACE_RESULTS:
             if (c == 'v' && raceRes.lapCount > 0) {
-                lapViewIdx = raceRes.bestIdx;   // começa na melhor volta
+                lapViewIdx = raceRes.bestIdx;   // start on the best lap
                 state = State::RACE_LAPS;
             }
             if (c == '\n' || c == '`') leaveResults();
@@ -294,12 +294,12 @@ static void onNewFix(const GpsFix& fix) {
     lastFixEpochMs = fix.epochMs;
     lastFixMillis = millis();
 
-    // Transições automáticas ao ganhar fix.
+    // Automatic transitions once a fix is acquired.
     if (state == State::WAIT_FIX_RACE) state = State::RACE_ARM;
     if (state == State::WAIT_FIX_TRIP) { startTrip(fix); return; }
 
     if (state == State::RACE_RUNNING) {
-        // Melhor volta ANTES desta (referência do delta).
+        // Best lap BEFORE this one (delta reference).
         const uint32_t prevBest = lapTimer.lapCount() > 0 ? lapTimer.bestLapMs() : 0;
         if (lapTimer.onFix(fix.lat, fix.lon, fix.epochMs) && prevBest > 0) {
             const uint32_t lastLap = lapTimer.lap(lapTimer.lapCount() - 1).timeMs;
@@ -310,7 +310,7 @@ static void onNewFix(const GpsFix& fix) {
         trip.onFix(fix.lat, fix.lon, fix.speedKmh, fix.epochMs);
     }
 
-    // Log GPX (intervalo depende do modo).
+    // GPX logging (interval depends on the mode).
     if (gpx.isOpen()) {
         const uint32_t interval = (state == State::RACE_RUNNING)
             ? GPX_RACE_INTERVAL_MS : GPX_TRIP_INTERVAL_MS;
@@ -326,7 +326,7 @@ static void refreshUi() {
     lastUiMs = millis();
 
     GpsFix fix = gps.fix();
-    fix.epochMs = nowEpochMs();  // cronômetro suave entre fixes
+    fix.epochMs = nowEpochMs();  // smooth timer between fixes
 
     switch (state) {
         case State::SPLASH:        ui.drawSplash(); break;
@@ -351,7 +351,7 @@ void setup() {
     auto cfg = M5.config();
     M5Cardputer.begin(cfg, true);
     ui.begin();
-    ui.drawSplash();             // splash cobre o tempo de init de SD/GPS
+    ui.drawSplash();             // splash covers the SD/GPS init time
     splashStartMs = millis();
     sdOk = GpxWriter::initSd();
     if (sdOk) { langLoad(); cars.load(); }

@@ -3,7 +3,7 @@
 #include "../config.h"
 #include "../geo/geo.h"
 
-// Gravação de trajeto: distância, duração, velocidade máxima e média.
+// Trip recording: distance, duration, max and average speed.
 
 class TripRecorder {
 public:

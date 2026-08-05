@@ -41,12 +41,12 @@ void CarRegistry::use(const char* name) {
     strncpy(current_, name, CAR_NAME_LEN);
     current_[CAR_NAME_LEN] = 0;
 
-    // Já existe? Move para o topo (MRU).
+    // Already exists? Move it to the top (MRU).
     int found = -1;
     for (uint8_t i = 0; i < count_; ++i) {
         if (strcasecmp(names_[i], current_) == 0) { found = i; break; }
     }
-    if (found == 0) return;  // já é o primeiro
+    if (found == 0) return;  // already at the top
 
     if (found > 0) {
         char tmp[CAR_NAME_LEN + 1];
@@ -54,7 +54,7 @@ void CarRegistry::use(const char* name) {
         for (int i = found; i > 0; --i) strncpy(names_[i], names_[i - 1], sizeof(names_[i]));
         strncpy(names_[0], tmp, sizeof(names_[0]));
     } else {
-        // Novo: insere no topo, descarta o último se cheio.
+        // New: insert at the top, drop the last one if full.
         if (count_ < MAX_CARS) count_++;
         for (int i = count_ - 1; i > 0; --i) strncpy(names_[i], names_[i - 1], sizeof(names_[i]));
         strncpy(names_[0], current_, sizeof(names_[0]));
@@ -68,8 +68,8 @@ void CarRegistry::sanitize(const char* in, char* out, size_t n) {
         const char c = in[i];
         if (isalnum((unsigned char)c) || c == '-' || c == '_') out[j++] = c;
         else if (c == ' ') out[j++] = '-';
-        // demais caracteres: descartados
+        // other characters: discarded
     }
-    if (j == 0) out[j++] = 'c';  // nunca vazio
+    if (j == 0) out[j++] = 'c';  // never empty
     out[j] = 0;
 }

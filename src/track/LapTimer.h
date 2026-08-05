@@ -3,17 +3,17 @@
 #include "../config.h"
 #include "../geo/geo.h"
 
-// Cronômetro de voltas por linha de largada virtual.
+// Lap timer based on a virtual start line.
 //
-// A linha é um segmento de 2*START_LINE_HALF_WIDTH_M perpendicular ao curso
-// do carro no momento da marcação. Cruzamento = interseção do segmento
-// (fix anterior -> fix atual) com a linha, com interpolação temporal na
-// fração de cruzamento (precisão sub-fix mesmo a 10 Hz).
+// The line is a segment of 2*START_LINE_HALF_WIDTH_M perpendicular to the
+// car's course at the moment of marking. Crossing = intersection of the
+// segment (previous fix -> current fix) with the line, with temporal
+// interpolation at the crossing fraction (sub-fix precision even at 10 Hz).
 //
-// Setores: a volta 1 define a distância de referência; ela é dividida em
-// NUM_SECTORS trechos iguais. A volta ideal = soma dos melhores setores.
-// Durante a volta 1 são gravados checkpoints (distância, tempo) para
-// calcular retroativamente os setores da própria volta 1.
+// Sectors: lap 1 defines the reference distance; it is split into
+// NUM_SECTORS equal stretches. The ideal lap = sum of the best sectors.
+// During lap 1, checkpoints (distance, time) are recorded to compute
+// lap 1's own sectors retroactively.
 
 struct Lap {
     uint32_t timeMs = 0;
@@ -22,10 +22,10 @@ struct Lap {
 
 class LapTimer {
 public:
-    // Marca a linha de largada na posição/curso atuais e inicia a volta 1.
+    // Marks the start line at the current position/course and begins lap 1.
     void setStartLine(double lat, double lon, float courseDeg, uint64_t epochMs);
 
-    // Alimenta um fix novo. Retorna true se uma volta foi completada.
+    // Feeds a new fix. Returns true if a lap was completed.
     bool onFix(double lat, double lon, uint64_t epochMs);
 
     bool     isRunning() const { return running_; }
@@ -33,12 +33,12 @@ public:
     uint32_t currentLapMs(uint64_t nowEpochMs) const;
     const Lap& lap(uint16_t i) const { return laps_[i]; }
 
-    // Estatísticas (válidas com lapCount() >= 1)
+    // Statistics (valid with lapCount() >= 1)
     uint32_t bestLapMs() const;
     uint32_t worstLapMs() const;
     uint32_t avgLapMs() const;
     uint16_t bestLapIndex() const;
-    uint32_t idealLapMs() const;                    // soma dos melhores setores
+    uint32_t idealLapMs() const;                    // sum of the best sectors
     uint32_t bestSectorMs(uint8_t s) const;
 
     void stop() { running_ = false; }
@@ -50,28 +50,28 @@ private:
     void recordCheckpoint(float dist, uint64_t epochMs);
     void backfillLap1Sectors(uint64_t crossEpochMs);
 
-    // Linha de largada (coords ENU, ref = centro da linha)
+    // Start line (ENU coords, ref = center of the line)
     GeoProjector proj_;
     Vec2  lineA_, lineB_;
-    Vec2  lineDir_;               // direção de travessia válida (unitária)
+    Vec2  lineDir_;               // valid crossing direction (unit vector)
     bool  lineSet_ = false;
     bool  running_ = false;
 
-    // Fix anterior
+    // Previous fix
     Vec2     prevPos_;
     uint64_t prevEpochMs_ = 0;
     bool     hasPrev_ = false;
 
-    // Volta corrente
+    // Current lap
     uint64_t lapStartMs_ = 0;
-    float    lapDist_ = 0;        // distância acumulada na volta (m)
-    uint8_t  nextSector_ = 0;     // próximo limite de setor a cruzar
-    uint64_t lastSectorMs_ = 0;   // epoch do fechamento do último setor
+    float    lapDist_ = 0;        // distance accumulated in the lap (m)
+    uint8_t  nextSector_ = 0;     // next sector boundary to cross
+    uint64_t lastSectorMs_ = 0;   // epoch of the last sector's close
 
-    // Referência de setores (definida pela volta 1)
+    // Sector reference (defined by lap 1)
     float refLapDist_ = 0;
 
-    // Checkpoints da volta 1 p/ backfill de setores
+    // Lap 1 checkpoints for sector backfill
     static constexpr uint16_t kMaxCkpts = 512;
     static constexpr float    kCkptStride = 20.0f;  // m
     struct Ckpt { float dist; uint64_t tMs; };

@@ -2,7 +2,7 @@
 #include <SPI.h>
 
 bool GpxWriter::initSd() {
-    // Desseleciona o SX1262 do Cap (mesmo barramento SPI).
+    // Deselect the Cap's SX1262 (same SPI bus).
     pinMode(LORA_NSS_PIN, OUTPUT);
     digitalWrite(LORA_NSS_PIN, HIGH);
 
@@ -12,7 +12,7 @@ bool GpxWriter::initSd() {
     return true;
 }
 
-// Epoch (ms) -> data/hora civil UTC (inverso de daysFromCivil).
+// Epoch (ms) -> civil UTC date/time (inverse of daysFromCivil).
 void GpxWriter::epochToCivil(uint64_t epochMs, int& y, int& mo, int& d,
                              int& h, int& mi, int& s) {
     int64_t secs = (int64_t)(epochMs / 1000ULL);
@@ -72,7 +72,7 @@ void GpxWriter::addPoint(double lat, double lon, float eleM,
     snprintf(pt, sizeof(pt),
              "<trkpt lat=\"%.7f\" lon=\"%.7f\"><ele>%.1f</ele><time>%s</time>"
              "<extensions><speed>%.2f</speed></extensions></trkpt>\n",
-             lat, lon, eleM, ts, speedKmh / 3.6f);  // speed em m/s
+             lat, lon, eleM, ts, speedKmh / 3.6f);  // speed in m/s
     append(pt);
     flush(false);
 }

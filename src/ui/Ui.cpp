@@ -6,7 +6,7 @@ static constexpr uint16_t C_BG     = TFT_BLACK;
 static constexpr uint16_t C_FG     = TFT_WHITE;
 static constexpr uint16_t C_ACCENT = TFT_GREEN;
 static constexpr uint16_t C_WARN   = TFT_ORANGE;
-static constexpr uint16_t C_DIM    = 0x7BEF;  // cinza
+static constexpr uint16_t C_DIM    = 0x7BEF;  // gray
 
 void Ui::begin() {
     M5Cardputer.Display.setRotation(1);
@@ -68,7 +68,7 @@ void Ui::drawCarSelect(const CarRegistry& cars, uint8_t sel) {
     header(L().carSelTitle, nullptr);
     canvas_.setTextSize(1);
 
-    // Janela de rolagem: 6 linhas visíveis, entradas = carros + "novo".
+    // Scroll window: 6 visible rows, entries = cars + "new".
     const uint8_t total = cars.count() + 1;
     const uint8_t rows = 6;
     uint8_t first = (sel >= rows) ? sel - rows + 1 : 0;
@@ -113,7 +113,7 @@ void Ui::drawMenu(const GpsFix& fix, bool sdOk, const char* car, uint8_t sel) {
     header("GPS TRACKER", &fix);
     canvas_.setTextSize(1);
 
-    // Linhas dinâmicas (carro atual / idioma atual).
+    // Dynamic lines (current car / current language).
     char carLine[48], langLine[32];
     snprintf(carLine, sizeof(carLine), L().menuCarFmt, car);
     snprintf(langLine, sizeof(langLine), L().menuLangFmt,
@@ -171,7 +171,7 @@ void Ui::drawRaceArm(const GpsFix& fix) {
     push();
 }
 
-// "+1.234" / "-0.573" (segundos); acima de 60 s usa formato de volta.
+// "+1.234" / "-0.573" (seconds); above 60 s uses the lap format.
 static void fmtDelta(int32_t ms, char* out, size_t n) {
     const uint32_t a = (uint32_t)(ms < 0 ? -ms : ms);
     if (a < 60000) {
@@ -190,20 +190,20 @@ void Ui::drawRaceLive(const GpsFix& fix, const LapTimer& lt,
     header(L().raceTitle, &fix);
     char t[20], line[48];
 
-    // Tempo da volta corrente (grande)
+    // Current lap time (large)
     fmtLap(lt.currentLapMs(fix.epochMs), t, sizeof(t));
     canvas_.setTextSize(3);
     canvas_.setTextColor(C_FG, C_BG);
     canvas_.drawString(t, 12, 24);
 
-    // Velocidade
+    // Speed
     char sp[16];
     snprintf(sp, sizeof(sp), "%3.0f km/h", fix.speedKmh);
     canvas_.setTextSize(2);
     canvas_.setTextColor(C_ACCENT, C_BG);
     canvas_.drawString(sp, 12, 56);
 
-    // Delta da volta completada vs. melhor anterior (janela de 7 s)
+    // Delta of the completed lap vs. previous best (7 s window)
     if (deltaActive) {
         const uint16_t bg = deltaMs <= 0 ? C_ACCENT : TFT_RED;
         canvas_.fillRoundRect(120, 50, 114, 28, 4, bg);
@@ -216,7 +216,7 @@ void Ui::drawRaceLive(const GpsFix& fix, const LapTimer& lt,
         canvas_.setTextDatum(top_left);
     }
 
-    // Volta corrente + última
+    // Current lap + last
     canvas_.setTextSize(1);
     canvas_.setTextColor(C_DIM, C_BG);
     snprintf(line, sizeof(line), L().raceLapFmt, lt.lapCount() + 1);
@@ -231,7 +231,7 @@ void Ui::drawRaceLive(const GpsFix& fix, const LapTimer& lt,
         canvas_.setTextColor(C_FG, C_BG);
         canvas_.drawString(line, 12, 98);
 
-        // Melhor volta em destaque permanente (faixa verde)
+        // Best lap in permanent highlight (green band)
         fmtLap(lt.bestLapMs(), t, sizeof(t));
         snprintf(line, sizeof(line), L().raceBestFmt, lt.bestLapIndex() + 1, t);
         canvas_.fillRoundRect(8, 111, 170, 16, 3, C_ACCENT);
@@ -269,7 +269,7 @@ void Ui::drawRaceResults(const RaceResult& r) {
     canvas_.setTextColor(C_ACCENT, C_BG);
     canvas_.drawString(line, 8, 76);
 
-    // Melhores setores
+    // Best sectors
     canvas_.setTextColor(C_DIM, C_BG);
     int x = 8;
     for (uint8_t s = 0; s < NUM_SECTORS; ++s) {
@@ -302,7 +302,7 @@ void Ui::drawLapDetail(const RaceResult& r, uint16_t lapIdx) {
     canvas_.setTextColor(C_FG, C_BG);
     canvas_.drawString(t, 8, 34);
 
-    // Delta vs. melhor volta
+    // Delta vs. best lap
     canvas_.setTextSize(2);
     if (lapIdx == r.bestIdx) {
         canvas_.setTextColor(TFT_BLACK, C_ACCENT);
@@ -315,7 +315,7 @@ void Ui::drawLapDetail(const RaceResult& r, uint16_t lapIdx) {
         canvas_.drawString(d, 8, 66);
     }
 
-    // Setores (verde quando é o melhor setor da sessão)
+    // Sectors (green when it's the session's best sector)
     canvas_.setTextSize(1);
     int x = 8;
     for (uint8_t s = 0; s < NUM_SECTORS; ++s) {

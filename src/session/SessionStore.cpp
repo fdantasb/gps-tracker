@@ -57,7 +57,7 @@ bool SessionStore::sesPathFromGpx(const char* gpxPath, char* out, size_t n) {
     const size_t len = strlen(gpxPath);
     if (len < 5 || len >= n) return false;
     strncpy(out, gpxPath, n);
-    strcpy(out + len - 4, ".ses");   // troca ".gpx" por ".ses"
+    strcpy(out + len - 4, ".ses");   // swap ".gpx" for ".ses"
     return true;
 }
 
@@ -106,12 +106,12 @@ static bool endsWith(const char* s, const char* suf) {
     return ls >= lf && strcmp(s + ls - lf, suf) == 0;
 }
 
-// "YYYYMMDD_HHMMSS_<carro>_<modo>.ses" -> "DD/MM HH:MM COR <carro>"
+// "YYYYMMDD_HHMMSS_<car>_<mode>.ses" -> "DD/MM HH:MM RAC <car>"
 void SessionStore::makeLabel(const char* file, bool isRace, char* out, size_t n) {
     char car[CAR_NAME_LEN + 1] = "?";
     if (strlen(file) > 20) {
-        const char* start = file + 16;              // após data_hora_
-        const char* end = strrchr(file, '_');       // antes de _modo.ses
+        const char* start = file + 16;              // after date_time_
+        const char* end = strrchr(file, '_');       // before _mode.ses
         if (end && end > start) {
             size_t len = min((size_t)(end - start), (size_t)CAR_NAME_LEN);
             memcpy(car, start, len);
@@ -119,7 +119,7 @@ void SessionStore::makeLabel(const char* file, bool isRace, char* out, size_t n)
         }
         snprintf(out, n, "%.2s/%.2s %.2s:%.2s %s %s",
                  file + 6, file + 4, file + 9, file + 11,
-                 isRace ? "COR" : "TRA", car);
+                 isRace ? "RAC" : "TRI", car);
     } else {
         snprintf(out, n, "%s", file);
     }
@@ -139,7 +139,7 @@ uint8_t SessionStore::list(SessionEntry* out, uint8_t maxEntries) {
 
         bool needsImport = false;
         if (endsWith(name, ".gpx")) {
-            // Só entra se for órfão (sem .ses correspondente).
+            // Only include it if orphaned (no matching .ses).
             char ses[80];
             snprintf(ses, sizeof(ses), GPX_DIR "/%s", name);
             const size_t l = strlen(ses);
@@ -150,7 +150,7 @@ uint8_t SessionStore::list(SessionEntry* out, uint8_t maxEntries) {
             continue;
         }
 
-        // Inserção ordenada decrescente (prefixo de data => lexicográfico).
+        // Descending ordered insert (date prefix => lexicographic).
         uint8_t pos = count;
         for (uint8_t i = 0; i < count; ++i) {
             if (strcmp(name, out[i].file) > 0) { pos = i; break; }

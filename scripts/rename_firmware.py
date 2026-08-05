@@ -1,3 +1,3 @@
-# Renomeia o binário de saída: firmware.bin -> gps-tracker.bin
+# Renames the output binary: firmware.bin -> gps-tracker.bin
 Import("env")
 env.Replace(PROGNAME="gps-tracker")

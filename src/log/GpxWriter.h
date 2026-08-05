@@ -3,21 +3,21 @@
 #include <SD.h>
 #include "../config.h"
 
-// Escrita de GPX 1.1 em streaming para o microSD.
-// Buffer em RAM com flush a cada GPX_FLUSH_BYTES — evita desgaste do
-// cartão e travadas de escrita a 10 Hz.
+// Streaming GPX 1.1 writer to the microSD.
+// RAM buffer flushed every GPX_FLUSH_BYTES — avoids card wear
+// and write stalls at 10 Hz.
 
 class GpxWriter {
 public:
-    // Monta SPI + SD. Chamar uma vez no boot. Retorna false sem cartão.
+    // Sets up SPI + SD. Call once at boot. Returns false without a card.
     static bool initSd();
 
-    // Abre /gpx/YYYYMMDD_HHMMSS_<sufixo>.gpx. trackName vai no <name>.
+    // Opens /gpx/YYYYMMDD_HHMMSS_<suffix>.gpx. trackName goes in <name>.
     bool open(uint64_t epochMs, const char* suffix, const char* trackName);
 
     void addPoint(double lat, double lon, float eleM, float speedKmh, uint64_t epochMs);
 
-    // Fecha as tags e o arquivo. Retorna o caminho gravado.
+    // Closes the tags and the file. Returns the written path.
     const char* close();
 
     bool isOpen() const { return open_; }

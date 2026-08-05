@@ -6,11 +6,11 @@ void GpsService::begin() {
     serial_.begin(GPS_BAUD, SERIAL_8N1, GPS_UART_RX_PIN, GPS_UART_TX_PIN);
     delay(100);
 
-    // Taxa de atualização: 10 Hz (PCAS02, período em ms).
+    // Update rate: 10 Hz (PCAS02, period in ms).
     sendCasic("PCAS02,100");
 
-    // Habilita apenas GGA (1º campo) e RMC (5º campo) — menos parsing/tráfego.
-    // Campos: GGA,GLL,GSA,GSV,RMC,VTG,ZDA,ANT,DHV,LPS,res,res,UTC,GST
+    // Enable only GGA (1st field) and RMC (5th field) — less parsing/traffic.
+    // Fields: GGA,GLL,GSA,GSV,RMC,VTG,ZDA,ANT,DHV,LPS,res,res,UTC,GST
     sendCasic("PCAS03,1,0,0,0,1,0,0,0,0,0,,,0,0");
 }
 
@@ -29,7 +29,7 @@ bool GpsService::update() {
     }
     if (!encoded) return false;
 
-    // Só considera "fix novo" quando a posição foi atualizada nesta rodada.
+    // Only treat it as a "new fix" when the position was updated this round.
     if (!gps_.location.isUpdated()) return false;
 
     fix_.valid = gps_.location.isValid() && gps_.date.isValid() && gps_.time.isValid();
@@ -46,7 +46,7 @@ bool GpsService::update() {
                                gps_.time.hour(), gps_.time.minute(),
                                gps_.time.second(), gps_.time.centisecond());
 
-    // GGA e RMC do mesmo ciclo carregam o mesmo timestamp — reporta só uma vez.
+    // GGA and RMC from the same cycle carry the same timestamp — report only once.
     if (fix_.epochMs == lastEpochMs_) return false;
     lastEpochMs_ = fix_.epochMs;
     return true;

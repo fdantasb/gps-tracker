@@ -1,13 +1,13 @@
 #pragma once
 #include <math.h>
 
-// Geometria plana local (ENU) + utilidades geográficas.
-// Escala de autódromo/trajeto urbano: projeção equiretangular é suficiente.
+// Local planar geometry (ENU) + geographic utilities.
+// Racetrack / urban-trip scale: an equirectangular projection is enough.
 
-// Nota: construtores explícitos (em vez de NSDMI) para permitir
-// inicialização por chaves em C++11 (gnu++11 do core ESP32).
+// Note: explicit constructors (instead of NSDMI) to allow brace
+// initialization in C++11 (the ESP32 core's gnu++11).
 struct Vec2 {
-    float x, y;   // metros (E, N) relativos à referência
+    float x, y;   // meters (E, N) relative to the reference
     Vec2() : x(0), y(0) {}
     Vec2(float x_, float y_) : x(x_), y(y_) {}
 };
@@ -23,14 +23,14 @@ private:
     bool set_ = false;
 };
 
-// Distância entre dois pontos geográficos (m).
+// Distance between two geographic points (m).
 double haversineMeters(double lat1, double lon1, double lat2, double lon2);
 
-// Interseção do segmento P1->P2 com Q1->Q2.
-// Retorna true e a fração t (0..1) ao longo de P1->P2 no ponto de cruzamento.
+// Intersection of segment P1->P2 with Q1->Q2.
+// Returns true and the fraction t (0..1) along P1->P2 at the crossing point.
 bool segmentsIntersect(const Vec2& p1, const Vec2& p2,
                        const Vec2& q1, const Vec2& q2, float& tOut);
 
-// Epoch Unix (ms) a partir de data/hora UTC.
+// Unix epoch (ms) from UTC date/time.
 uint64_t toEpochMs(int year, int month, int day,
                    int hour, int minute, int second, int centisecond);
